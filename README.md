@@ -2,7 +2,7 @@
 
 ## Overview
 
-We introduce the TESA algorithm, which is a novel motif discovery algorithm designed for ChIP-exo data. ChIP-exo is a high-resolution DNA sequencing technique that improves the accuracy and precision of motif discovery compared to traditional ChIP-seq methods. TESA utilizes a weighted two-stage alignment procedure that takes into account positional sequencing coverage to allocate weights to sequence positions. This allows for the accurate localization of TF-DNA interaction sites and the assessment of closely located or overlapping binding occurrences. Experimental results demonstrate that TESA outperforms other motif discovery algorithms in terms of precision and the reconstruction of Position Weight Matrices (PWM) when applied to both prokaryotic and eukaryotic ChIP-exo datasets. The availability of the TESA source code and benchmark datasets further enhances its potential as a valuable tool in genomic research.
+We introduce the TESA algorithm, which is a novel motif discovery algorithm designed for ChIP-exo data. ChIP-exo is a high-resolution DNA sequencing technique that improves the accuracy and precision of motif discovery compared to traditional ChIP-seq methods. TESA utilizes a weighted two-stage alignment procedure that takes into account positional sequencing coverage to allocate weights to sequence positions. This allows for the accurate localization of TF-DNA interaction sites and the assessment of closely located or overlapping binding occurrences. Experimental results demonstrate that TESA outperforms other motif discovery algorithms in terms of precision and the reconstruction of Position Weight Matrices (PWM) when applied to both prokaryotic and eukaryotic ChIP-exo datasets. The availability of the TESA source code and benchmark datasets further enhance its potential as a valuable tool in genomic research.
 
 Overall, we highlight the significance of TESA in improving motif discovery accuracy and precision by leveraging the higher resolution and precise localization offered by ChIP-exo data. The algorithm's weighted two-stage alignment procedure and incorporation of a "bookend" model contribute to its superior performance in identifying DNA binding patterns. The comparisons with other motif discovery algorithms and the availability of benchmark datasets further validate the effectiveness of TESA in genomic research.
 
@@ -39,85 +39,108 @@ The sequence set refers to the collection of DNA sequences that are used as inpu
 
 ## Installation
 
-`GCC` version 9.4.0 or above is required.
+### Preparation
 
-Enter the folder `tesa` and type `make` then the compiled codes are within the same directory as the source.
+1. `GCC` version 9.4.0 or above is required. Otherwise you can install `GCC` with root privileges using the following code:
 
 ```console
-$ git clone https://github.com/OSU-BMBL/tesa.git
-$ cd tesa/src
-$ make clean && make
+yum -y install gcc
 ```
 
-## Inputs and outputs
+Alternatively you can meet all requirements by installing the developer toolset `build-essential`:
+```console
+sudo apt install build-essential
+```
+
+2. If you are running TESA using an input file with sequencing coverage, both `BEDTools` and `BigWigMerge` are required.
+   
+   `BEDTools`: https://BEDTools.readthedocs.io/en/latest
+   
+   `BigWigMerge`: https://anaconda.org/bioconda/ucsc-bigwigmerge
+   
+   Following script can be used to install `BEDTools` 2.29.1 and `BigWigMerge` through `conda`:
+
+BEDTools 2.29.1:
+
+```console
+wget https://github.com/arq5x/bedtools2/releases/download/v2.29.1/bedtools-2.29.1.tar.gz
+tar -zxvf bedtools-2.29.1.tar.gz
+cd bedtools2
+make
+```
+
+BigWigMerge:
+
+```console
+conda install -c bioconda ucsc-bigwigmerge
+```
+
+Tip: If you don't have root privileges, `conda` can be used to build a virtual environment and perform the above operations in the `conda` virtual environment.
+
+It is strongly recommended to add the above software to the environment `PATH` after installation. For example, one way, add `export PATH=$PATH:<path_of_BEDTools_bin_path>` to `~/.bash_profile`, where `<path_of_BEDTools_bin_path>` is your `bedtools` binary files location.
+
+
+
+### Program compilation
+
+Enter the folder `tesa` and type `make`, then the compiled codes are within the same directory as the source.
+
+```console
+git clone https://github.com/OSU-BMBL/tesa.git
+cd tesa/src
+make clean && make
+```
+
+## Running TESA using an input file without sequencing coverage
 
 The major program in the provided package is `tesa`. It is capable of parsing standard `FASTA` format files, allowing sequences with different lengths. Example files are provided for reference.
 
 To access help and view all available options.
 
 ```console
-$ ./tesa -h (./tesa)
+./tesa -h (./tesa)
 ```
 
 Take a look at an instance file in `FASTA` format, `test.fasta`, in the example folder. Then, you can run `tesa` with a specific length parameter `l`, where the program will handle segments of that length or greater during the two-stage alignment process to identify potential motifs. For example, you can run the following command to specify segments with length exactly 14.
 
 ```console
-$ ./tesa -i ../test.fasta -l 14
+./tesa -i ../example/test.fasta -l 14
 ```
 For each input file with a specific length parameter `l`, the program will generate an output file, namely, `'.closures'` file. This file contains all the closures, which represent the instances of identified motifs.
 
-Additionally, you can run `tesa` recognizing the correct length in the scope `[L,U]` by our program automatically.
+Additionally, you can run `tesa` recognizing the correct segment length in the scope `[L,U]` by our program automatically.
 
 ```console
-$ ./tesa -i ../test.fasta -L 14 -U 16
+./tesa -i ../example/test.fasta -L 14 -U 16
 ```
 
-`L` and `U` are lower and upper length of segments during two-stage alignment separately. This is useful when the accurate length is not known in advance. We sort the top `n` closures under each specific length in the increasing order of their *P*-values and save the top `o` closures in the `'.closures'` file. Especially, when the input value of `L` equals to `U`, it is equivalent to finding motifs in a specific length. For example, `'./tesa -i ../test.fasta -L 14 -U 14'` is equivalent to `'./tesa -i ../test.fasta -l 14'`.
+`L` and `U` are lower and upper length of segments during two-stage alignment separately. This is useful when the accurate length is not known in advance. We sort the top `n` closures under each specific length in the increasing order of their *P*-values and save the top `o` closures in the `'.closures'` file. Especially, when the input value of `L` equals to `U`, it is equivalent to finding motifs based on segments of a specific length. For example, `'./tesa -i ../test.fasta -L 14 -U 14'` is equivalent to `'./tesa -i ../test.fasta -l 14'`.
 
 ## Running TESA using an input file with sequencing coverage
 
 You can run TESA with another option using sequencing coverage according to the following instructions:
  
-1. Make sure both ```BEDTools``` and ```BigWigMerge``` are ready. 
-   
-   `BEDTools`: https://BEDTools.readthedocs.io/en/latest
-   
-   `BigWigMerge`: https://anaconda.org/bioconda/ucsc-bigwigmerge
-   
-   Following script can be used to install `BEDTools` 2.29.1 and `BigWigMerge` through conda:
-   
-```console
-BEDTools 2.29.1:
+1. Make sure both ```BEDTools``` and ```BigWigMerge``` are ready and added to your environment `PATH` so that they can be directly called.
 
-$ wget https://github.com/arq5x/bedtools2/releases/download/v2.29.1/bedtools-2.29.1.tar.gz
-$ tar -zxvf bedtools-2.29.1.tar.gz
-$ cd bedtools2
-$ make
-
-BigWigMerge:
-
-$ conda install -c bioconda ucsc-bigwigmerge
-```
-
-3. A peak file with `BED` format (for instance, `[PREFIX].bed`), several `bigWig` files for example named `[PREFIX]_Forward.bw` and `[PREFIX]_Reverse.bw` respectively and a reference file with `FASTA` format with its index file of `FASTA.FAI` format are required. For instance, there is a toy run with `test.bed`, `test_Forward.bw`, `test_Reverse.bw`, `reference.fa` and `reference.fa.fai` as input. Additionally, you can generate reference using `SAMTools`. 
+2. A peak file with `BED` format (for instance, `[PREFIX].bed`), several `bigWig` files for example named `[PREFIX]_Forward.bw` and `[PREFIX]_Reverse.bw` respectively and a reference file with `FASTA` format with its index file of `FASTA.FAI` format are required. For instance, there is a toy run with `test.bed`, `test_Forward.bw`, `test_Reverse.bw`, `reference.fa` and `reference.fa.fai` as input. Additionally, you can generate reference using `SAMTools`. 
 
    `SAMTools`: https://github.com/samtools/samtools
 
-4. Run preprocessing script and generate output file `*.tesa`.
+3. Run preprocessing script and generate output file `*.tesa`.
 
 ```console
-$ chmod +x preprocess.sh
-$ ./preprocess.sh [PEAK_PREFIX] [REFERENCE_FILE] [REFERENCE_INDEX_FILE] [OUTPUT_PREFIX]
+./preprocess.sh [PEAK_PREFIX] [REFERENCE_FILE] [REFERENCE_INDEX_FILE] [OUTPUT_PREFIX]
 ```
-5. Run TESA beyond new input with sequencing coverage.
+4. Run TESA beyond new input with sequencing coverage.
 ```console
-$ ./tesa [OUTPUT_PREFIX].tesa
+./tesa [OUTPUT_PREFIX].tesa
 ```
 For instance:
 ```console
-$ cd example
-$ ../preprocess.sh test reference.fa reference.fa.fai test_out
-$ ../src/tesa test_out.tesa
+cd example
+chmod +x ../script/preprocess.sh
+../script/preprocess.sh test reference.fa reference.fa.fai test_out
+../src/tesa -i test_out.tesa
 ```
 ## Parameters
 
